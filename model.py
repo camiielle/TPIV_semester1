@@ -40,9 +40,6 @@ l_f = a_f * τ_f * λ / (C + C0)
 a_s = -φ_f * τ_s * λ / (C * (φ_s - φ_f))
 l_s = a_s * τ_s * λ / (C + C0)
 
-# times at which I evaluate
-# t = np.array([0.5, 1.0, 2.0])
-
 # standard deviations
 sigma_a = 0.1
 sigma_o = 0.1
@@ -51,7 +48,8 @@ sigma_o = 0.1
 Ta = F/λ*(a_f*(1-sp.exp(-t/τ_f)) + a_s*(1-sp.exp(-t/τ_s)))
 dTa_dC = sp.diff(Ta, C)
 dTa_dC_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dC, 'numpy')
-dTa_dC0 = 0
+dTa_dC0 = sp.diff(Ta, C0)
+dTa_dC0_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dC0, 'numpy')
 dTa_dλ = sp.diff(Ta, λ)
 dTa_dλ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dλ, 'numpy')
 dTa_dγ = sp.diff(Ta, γ)
@@ -60,7 +58,8 @@ dTa_dF = 1/λ*(a_f*(1-sp.exp(-t/τ_f)) + a_s*(1-sp.exp(-t/τ_s)))
 dTa_dF_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dF, 'numpy')
 
 To = F/λ*(a_f*φ_f*(1-sp.exp(-t/τ_f)) + φ_s*a_s*(1-sp.exp(-t/τ_s)))
-dTo_dC = 0
+dTo_dC = sp.diff(To, C)
+dTo_dC_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dC, 'numpy')
 dTo_dC0 = sp.diff(To, C0)
 dTo_dC0_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dC0, 'numpy')
 dTo_dλ = sp.diff(To, λ)
@@ -70,9 +69,32 @@ dTo_dγ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dγ, 'numpy')
 dTo_dF = 1/λ*(a_f*φ_f*(1-sp.exp(-t/τ_f)) + φ_s*a_s*(1-sp.exp(-t/τ_s)))
 dTo_dF_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dF, 'numpy')
 
-# calculating the FIM
+# times at which I evaluate
 time = np.array([0.5, 1.0, 2.0])
-g11 = np.sum(1/(sigma_a**2)*(dTa_dC_numpy(8, 100, 1.3, 0.7, 3.9, time)**2))
+a = 1/(sigma_a**2)
+o = 1/(sigma_o**2)
+# evaluating the derivatives at specific parameter values
+dTa_dC_v = dTa_dC_numpy(8, 100, 1.3, 0.7, 3.9, time)  # array
+dTa_dC0_v = dTa_dC0_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTa_dλ_v = dTa_dλ_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTa_dγ_v = dTa_dγ_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTa_dF_v = dTa_dF_numpy(8, 100, 1.3, 0.7, 3.9, time)
+
+dTo_dC_v = dTo_dC_numpy(8, 100, 1.3, 0.7, 3.9, time)  # array
+dTo_dC0_v = dTo_dC0_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTo_dλ_v = dTo_dλ_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTo_dγ_v = dTo_dγ_numpy(8, 100, 1.3, 0.7, 3.9, time)
+dTo_dF_v = dTo_dF_numpy(8, 100, 1.3, 0.7, 3.9, time)
+
+# calculating the FIM
+g11 = np.sum(a*(dTa_dC_v**2)) + np.sum(o*(dTo_dC_v**2))
+g12 = np.sum(a*dTa_dC_v*dTa_dC0_v) + np.sum(o*dTo_dC_v*dTo_dC0_v)
+g13 = np.sum(a*dTa_dC_v * dTa_dλ_v) + np.sum(o*dTo_dC_v * dTo_dλ_v)
+g14 = np.sum(a*dTa_dC_v*dTa_dγ_v) + np.sum(o*dTo_dC_v*dTo_dγ_v) 
+g15 = np.sum(a*dTa_dC_v*dTa_dF_v) + np.sum(o*dTo_dC_v*dTo_dF_v)
+
+g22 = np.sum(a*(dTa_dC0_v**2)) + np.sum(o*(dTo_dC0_v**2))
+
 
 print('all good')
 
