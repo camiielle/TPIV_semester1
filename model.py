@@ -1,4 +1,3 @@
-from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
@@ -9,92 +8,90 @@ import sympy as sp
 
 # C = 8           # Upper layer heat capacity
 # C0 = 100        # Lower layer heat capacity
-# lambda_ = 1.3   # Climate feedback parameter
-# gamma = 0.7     # Heat exchange coefficient
-# epsilon = 1     # Efficacy factor
-# F = 3.9         # External forcing for a 4x CO2 increase
+# lambda_ = 1.3/8 
+# gamma = 0.7/8     
+# gamma0 = 0.7/100
+# epsilon = 1      # Efficacy factor
+# F = 3.9/8        # External forcing for a 4x CO2 increase divided by C
 
 # I make some assumptions to simplify the model:
-# 1) efficiency = 1 fixed (so one less parameter)
+# 1) efficacy = 1 fixed (so one less parameter)
 # 2) Forcing is a STEP FORCING
-# 3) T(0)=0 as initial conditions
-# under these assumptions an analytical solution exists
+# 3) Tx(0)=0 as initial conditions for x=a,o
+# under these assumptions an analytical solution exists and takes a simple form
 
-C, C0, λ, γ, F, t = sp.symbols('C C0 λ γ F t')
+pars = sp.symbols(['λ', 'γ', 'γ0', 'F', 't'])
+
+# Unpack the list into individual variables
+λ, γ, γ0, F, t = pars
 
 # General parameters
-b = (λ + γ) / C + γ / C0
-b_star = (λ + γ) / C - γ / C0
-delta = b*b - 4 * λ * γ / (C * C0)
+b = λ + γ + γ0
+b_star = λ + γ - γ0
+delta = b*b - 4 * λ * γ0
 
 # Mode parameters (Fast and Slow)
-τ_f = C * C0 * (b - sp.sqrt(delta)) / (2 * γ * λ)
-τ_s = C * C0 * (b + sp.sqrt(delta)) / (2 * γ * λ)
+τ_f = (b - sp.sqrt(delta)) / (2 * γ0 * λ)
+τ_s = (b + sp.sqrt(delta)) / (2 * γ0 * λ)
 
-φ_s = C / (2 * γ) * (b_star + sp.sqrt(delta))
-φ_f = C / (2 * γ) * (b_star - sp.sqrt(delta))
+φ_s = 1 / (2 * γ) * (b_star + sp.sqrt(delta))
+φ_f = 1 / (2 * γ) * (b_star - sp.sqrt(delta))
 
-a_f = φ_s * τ_f * λ / (C * (φ_s - φ_f))
-l_f = a_f * τ_f * λ / (C + C0)
+a_f = φ_s * τ_f * λ / (φ_s - φ_f)
+l_f = a_f * τ_f * λ / (1 + γ/γ0)
 
-a_s = -φ_f * τ_s * λ / (C * (φ_s - φ_f))
-l_s = a_s * τ_s * λ / (C + C0)
+a_s = -φ_f * τ_s * λ / (φ_s - φ_f)
+l_s = a_s * τ_s * λ / (1 + γ/γ0)
 
 # standard deviations
 sigma_a = 0.1
 sigma_o = 0.1
 
-# analytically calculating derivatives
+# defining ODEs solutions
 Ta = F/λ*(a_f*(1-sp.exp(-t/τ_f)) + a_s*(1-sp.exp(-t/τ_s)))
-dTa_dC = sp.diff(Ta, C)
-dTa_dC_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dC, 'numpy')
-dTa_dC0 = sp.diff(Ta, C0)
-dTa_dC0_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dC0, 'numpy')
-dTa_dλ = sp.diff(Ta, λ)
-dTa_dλ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dλ, 'numpy')
-dTa_dγ = sp.diff(Ta, γ)
-dTa_dγ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dγ, 'numpy')
-dTa_dF = 1/λ*(a_f*(1-sp.exp(-t/τ_f)) + a_s*(1-sp.exp(-t/τ_s)))
-dTa_dF_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTa_dF, 'numpy')
-
 To = F/λ*(a_f*φ_f*(1-sp.exp(-t/τ_f)) + φ_s*a_s*(1-sp.exp(-t/τ_s)))
-dTo_dC = sp.diff(To, C)
-dTo_dC_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dC, 'numpy')
-dTo_dC0 = sp.diff(To, C0)
-dTo_dC0_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dC0, 'numpy')
-dTo_dλ = sp.diff(To, λ)
-dTo_dλ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dλ, 'numpy')
-dTo_dγ = sp.diff(To, γ)
-dTo_dγ_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dγ, 'numpy')
-dTo_dF = 1/λ*(a_f*φ_f*(1-sp.exp(-t/τ_f)) + φ_s*a_s*(1-sp.exp(-t/τ_s)))
-dTo_dF_numpy = sp.lambdify([C, C0, λ, γ, F, t], dTo_dF, 'numpy')
+temps = [Ta, To]
+
+# Calculate the partial derivatives of the two functions
+der_a = []
+der_o = []
+
+for p in pars:
+    der_a.append(sp.lambdify(pars, sp.diff(Ta, p), 'numpy'))
+    der_o.append(sp.lambdify(pars, sp.diff(To, p), 'numpy'))
 
 # times at which I evaluate
 time = np.array([0.5, 1.0, 2.0])
 a = 1/(sigma_a**2)
 o = 1/(sigma_o**2)
-# evaluating the derivatives at specific parameter values
-dTa_dC_v = dTa_dC_numpy(8, 100, 1.3, 0.7, 3.9, time)  # array
-dTa_dC0_v = dTa_dC0_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTa_dλ_v = dTa_dλ_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTa_dγ_v = dTa_dγ_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTa_dF_v = dTa_dF_numpy(8, 100, 1.3, 0.7, 3.9, time)
 
-dTo_dC_v = dTo_dC_numpy(8, 100, 1.3, 0.7, 3.9, time)  # array
-dTo_dC0_v = dTo_dC0_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTo_dλ_v = dTo_dλ_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTo_dγ_v = dTo_dγ_numpy(8, 100, 1.3, 0.7, 3.9, time)
-dTo_dF_v = dTo_dF_numpy(8, 100, 1.3, 0.7, 3.9, time)
+# evaluating the derivatives at specific parameter values
+der_a_v = []
+der_o_v = []
+
+for der in der_a:
+    der_a_v.append(der(1.3/8, 0.7/8, 0.007, 3.9/8, time))
+    # each element in der_a_v is an array of three values
+
+for der in der_o:
+    der_o_v.append(der(1.3/8, 0.7/8, 0.007, 3.9/8, time))
+    # each element in der_o_v is an array of three values
 
 # calculating the FIM
-g11 = np.sum(a*(dTa_dC_v**2)) + np.sum(o*(dTo_dC_v**2))
-g12 = np.sum(a*dTa_dC_v*dTa_dC0_v) + np.sum(o*dTo_dC_v*dTo_dC0_v)
-g13 = np.sum(a*dTa_dC_v * dTa_dλ_v) + np.sum(o*dTo_dC_v * dTo_dλ_v)
-g14 = np.sum(a*dTa_dC_v*dTa_dγ_v) + np.sum(o*dTo_dC_v*dTo_dγ_v) 
-g15 = np.sum(a*dTa_dC_v*dTa_dF_v) + np.sum(o*dTo_dC_v*dTo_dF_v)
+g = np.zeros((4,4))
+for i in range(4):
+    for j in range (4):
+        g[i,j]= np.sum(a*der_a_v[i]*der_a_v[j]+o*der_o_v[i]*der_o_v[j])
 
-g22 = np.sum(a*(dTa_dC0_v**2)) + np.sum(o*(dTo_dC0_v**2))
+# Compute eigenvalues and eigenvectors
+eigenvalues, eigenvectors = np.linalg.eig(g)
 
+# Find the index of the minimum eigenvalue
+min_index = np.argmin(eigenvalues)
+
+# Get the minimum eigenvalue and its corresponding eigenvector
+min_eigenvalue = eigenvalues[min_index]
+min_eigenvector = eigenvectors[:, min_index]
 
 print('all good')
 
