@@ -22,6 +22,7 @@ from mbam.finite_difference import Avv_func, AvvCD4
 # 3) Tx(0)=0 as initial conditions for x=a,o
 # under these assumptions an analytical solution exists and takes a simple form
 
+print('started execution')
 pars = sp.symbols(['λ', 'γ', 'γ0', 'F', 't'])
 
 # Unpack the list into individual variables
@@ -79,10 +80,10 @@ for der in der_o:
 
 # calculating the FIM
 g = np.zeros((4, 4))
-for i in range(4):
-    for j in range(4):
-        g[i, j] = np.sum(1/(sigma_a**2)*der_a_v[i]*der_a_v[j] +
-                         1/(sigma_o**2)*der_o_v[i]*der_o_v[j])
+for θ in range(4):
+    for μ in range(4):
+        g[θ, μ] = np.sum(1/(sigma_a**2)*der_a_v[θ]*der_a_v[μ] +
+                         1/(sigma_o**2)*der_o_v[θ]*der_o_v[μ])
 
 # Compute eigenvalues and eigenvectors
 eigenvalues, eigenvectors = np.linalg.eig(g)
@@ -96,7 +97,6 @@ min_eigenvector = eigenvectors[:, min_index]
 
 # x is a list containing the chosen initial values of the parameters
 
-
 def r(x):
     Ta_v = sp.lambdify(pars, Ta, 'numpy')
     To_v = sp.lambdify(pars, To, 'numpy')
@@ -105,6 +105,7 @@ def r(x):
 
 
 def jacob(x):
+    #concatenates horizontally
     result = np.concatenate(((1/sigma_a)*np.array(der_a_v),
                             (1/sigma_o)*np.array(der_o_v)), axis=1)
     return np.array([result[i] for i in range(4)]).T
