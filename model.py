@@ -23,6 +23,7 @@ from mbam.finite_difference import Avv_func, AvvCD4
 # under these assumptions an analytical solution exists and takes a simple form
 
 print('started execution')
+
 pars = sp.symbols(['λ', 'γ', 'γ0', 'F', 't'])
 
 # Unpack the list into individual variables
@@ -143,3 +144,4 @@ plt.plot(geo_forward.ts, geo_forward.xs)
 plt.xlabel("tau")
 plt.ylabel("Parameter Values")
 plt.show()
+
